@@ -25,10 +25,11 @@ from functools import partial
 from datetime import datetime
 import time
 from math import cos, sin, tan, pi, atan
+from calendar import monthrange
 
 
 
-pause_weather = True
+pause_weather = False
 
 
 
@@ -1764,6 +1765,7 @@ class Home(Page):
         roak_weather_id = 5007804
         annarbor_weather_id = 4984247
 
+        API_key = '4b89aea78dd85e4582f86b23bc670e98'
         genral_font = "Times"
         # Dashboard Text Sizes
         weekday_size = 35
@@ -1792,135 +1794,109 @@ class Home(Page):
         weekday = time.strftime('%A')
         date = str(time.strftime('%B')) + " " + \
             str(time.strftime('%-d')) + "th, " + str(time.strftime('%Y'))
+
         # Ff weather is paused
-        if not(pause_weather):
-            API_key = '4b89aea78dd85e4582f86b23bc670e98'
-            f1 = OWM(API_key)
-            global f2
-            global local2
-            f2 = f1.three_hours_forecast_at_id(roak_weather_id)
-            local2 = f1.weather_at_id(roak_weather_id)
+        class weather_in_area():
+            def __init__(self, api_key, weather_id):
+                self.weather_id = weather_id
+                self.f1 =  OWM(api_key)
+                self.new = (self.f1).weather_at_id(self.weather_id)
+                self.f2 = (self.f1).three_hours_forecast_at_id(self.weather_id)
+
+
+            def three_hours_forecast(self):
+                return(f1.three_hours_forecast_at_id(self.weather_id))
+
 
         # Forecast Banner Information Function
-        def get_day_info(days_later):
+        class day_info(weather_in_area):
+            def __init__(self, api_key, weather_id, days_later):
+                pass
+                super().__init__(api_key, weather_id)
+                self.days_later = days_later
+                self.this_year = time.strftime('%Y')
+                self.this_month = time.strftime('%m')
+                self.this_day = time.strftime('%d')
+                self.updated_day = int(self.this_day) + int(self.days_later)
 
-            if pause_weather:
-                day_info = {'weekday_name': "Tuesday", "abrivated_full_date": '2/15/2019',
-                            "forecast": "real cold", 'icon_path': "http://openweathermap.org/img/w/01d.png"}
-            else:
-                # Number of Day of the week in the list
-                # weekday_name
-                def weekday_name(days_later):
-                    num_list_day = (int(time.strftime('%w')) - 1 + days_later)
-                    days_o_the_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
-                                       "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thurday", "Friday"]
-                    return(days_o_the_week[num_list_day])
 
-                this_year = str(time.strftime('%Y'))
-                this_month = str(time.strftime('%m'))
-                this_day = int(time.strftime('%d'))
+            def WeekdayName(self):
+                this_week = time.strftime('%w')
+                num_list_day = (int(this_week) - 1 + self.days_later)
+                days_o_the_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+                                   "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thurday", "Friday"]
+                return((days_o_the_week[num_list_day]).title())
 
-                if (this_day + int(days_later) > 31):
-                    this_month += 0
-                    this_day = ((this_day + days_later) - 31)
+            def AbrivatedDate(self):
+                abrv_date = str(int(time.strftime('%m'))) + "/" + str(self.updated_day) + "/" + str(self.this_year)
+                return(abrv_date)
 
-                updated_day = int(this_day) + int(days_later)
-
-                # 5/12/2001
-                abrv_date = str(int(time.strftime('%m'))) + "/" + \
-                    str(updated_day) + "/" + str(time.strftime('%Y'))
-
+            def Forecast(self):
                 # String for getting forecast
                 # Ex)'2019-02-12 17:00:00+00'
-                date_string = str(this_year + '-' + this_month +
-                                  '-' + str(updated_day) + ' ' + '12:00:00+00')
+                days_in_month = monthrange(int(self.this_year), int(self.this_month) )
+                if (int(self.this_day) + int(self.days_later) > days_in_month[1]):
+                    self.this_month += 1
+                    self.updated_day = ((self.this_day + self.days_later) - 31)
 
+                date_string = (str(self.this_year) + '-' + str(self.this_month) + '-' + str(self.updated_day) + ' ' + '12:00:00+00')
                 # Getting weather info
-                forecast = f2.get_weather_at(date_string)
 
+                forecast=(self.f2).get_weather_at(date_string)
                 # Detailed status for label
-                weather_forecast = forecast.get_detailed_status()
+                weather_forecast=forecast.get_detailed_status()
+                return(weather_forecast.title())
 
-                # Simple status for icon
-                simplified_weather = (forecast.get_status()).lower()
+            def Path(self):
+                date_string = (str(self.this_year) + '-' + str(self.this_month) + '-' + str(self.updated_day) + ' ' + '12:00:00+00')
+                forecast=(self.f2).get_weather_at(date_string)
+                simplified_weather=(forecast.get_status()).lower()
+                weather_icons={"clear": '01d', "few clouds": '02d', "scattered clouds": '03d', "broken clouds": '04d',
+                    "shower rain": '05d', "rain": '10d', "thunderstorm": '11d', "snow": '13d', "mist": '50d', "clouds": '03d'}
+                for status, code in weather_icons.items():
+                    if simplified_weather == status:
+                        path = "http://openweathermap.org/img/w/" + code + ".png"
+                if not(path): path = "http://openweathermap.org/img/w/01d.png"
+                return(path)
 
-                # Icon for weather
-                if (simplified_weather == "clear"):
-                    icon_id = '01d'
-                elif (simplified_weather == "few clouds"):
-                    icon_id = '02d'
-                elif (simplified_weather == "scattered clouds"):
-                    icon_id = '03d'
-                elif (simplified_weather == "broken clouds"):
-                    icon_id = '04d'
-                elif (simplified_weather == "shower rain"):
-                    icon_id = '05d'
-                elif (simplified_weather == "rain"):
-                    icon_id = '10d'
-                elif (simplified_weather == "thunderstorm"):
-                    icon_id = '11d'
-                elif (simplified_weather == "snow"):
-                    icon_id = '13d'
-                elif (simplified_weather == "mist"):
-                    icon_id = '50d'
-                elif (simplified_weather == 'clouds'):
-                    icon_id = '03d'
-                else:
-                    print(simplified_weather)
-                    icon_id = '01d'
-
-                path = "http://openweathermap.org/img/w/" + icon_id + ".png"
-
-                day_info = {'weekday_name': weekday_name(
-                    days_later), "abrivated_full_date": abrv_date, "forecast": weather_forecast, 'icon_path': path}
-            return(day_info)
 
         # Info about Location
-        def local_weather_stats():
-            if pause_weather:
-                local_info = {'tempature': {'temp': "32"}, 'detailed': 'real cold',
-                              'simple': "cold", 'path': "http://openweathermap.org/img/w/01d.png"}
-            else:
-                # Recieving weather Information
-                local3 = local2.get_weather()
-                #Tempature in Fahrenheit
-                temp_in_F = local3.get_temperature('fahrenheit')
-                # Local Detailed Status
-                status_D = (local3.get_detailed_status()).title()
-                # Local Simple Status
-                status_S = local3.get_status().lower()
-                # Icon for weather
-                if (status_S == "clear sky"):
-                    icon_id = '01d'
-                elif (status_S == "few clouds"):
-                    icon_id = '02d'
-                elif (status_S == "scattered clouds"):
-                    icon_id = '03d'
-                elif (status_S == "broken clouds"):
-                    icon_id = '04d'
-                elif (status_S == "shower rain"):
-                    icon_id = '05d'
-                elif (status_S == "rain"):
-                    icon_id = '10d'
-                elif (status_S == "thunderstorm"):
-                    icon_id = '11d'
-                elif (status_S == "snow"):
-                    icon_id = '13d'
-                elif (status_S == "mist"):
-                    icon_id = '50d'
-                else:
-                    icon_id = '01d'
-                path = "http://openweathermap.org/img/w/" + icon_id + ".png"
+        class local_weather(weather_in_area):
+            pass
 
-                local_info = {'tempature': temp_in_F, 'detailed': status_D,
-                              'simple': status_S.title(), 'path': path}
-            return(local_info)
+            def TempInF(self):
+                fahrenheit = ((self.new).get_weather()).get_temperature('fahrenheit')
+                return(int(fahrenheit['temp']))
 
-        day1_info = get_day_info(1)
-        day2_info = get_day_info(2)
-        day3_info = get_day_info(3)
-        day4_info = get_day_info(4)
-        day5_info = get_day_info(5)
+            def DetailedStatus(self):
+                detailed = (self.new).get_weather()
+                status_d = ((detailed).get_detailed_status()).title()
+                return(status_d)
+
+            def SimpleStatus(self):
+                simple = (self.new).get_weather()
+                status_s = (simple).get_status()
+                return(status_s)
+
+            def FindPath(self):
+                simple = (self.new).get_weather()
+                status_s = ((simple).get_status()).lower()
+                weather_icons={"clear": '01d', "few clouds": '02d', "scattered clouds": '03d', "broken clouds": '04d',
+                    "shower rain": '05d', "rain": '10d', "thunderstorm": '11d', "snow": '13d', "mist": '50d', "clouds": '03d'}
+                for status, code in weather_icons.items():
+                    if status_s == status:
+                        path = "http://openweathermap.org/img/w/" + code + ".png"
+                if not(path): path = "http://openweathermap.org/img/w/01d.png"
+                return(path)
+
+
+        day0_info = local_weather(weather_id=roak_weather_id, api_key=API_key)
+        day1_info = day_info(API_key,roak_weather_id, 1)
+        day2_info = day_info(API_key,roak_weather_id, 2)
+        day3_info = day_info(API_key,roak_weather_id, 3)
+        day4_info = day_info(API_key,roak_weather_id, 4)
+        day5_info = day_info(API_key,roak_weather_id, 5)
+
         # 222222
 
         # Home Frame
@@ -1976,8 +1952,7 @@ class Home(Page):
         weather_frame = Frame(header_right_frame, background="#00f3c3")
         weather_frame.grid(row=2, column=0)
 
-        weather_label = Label(weather_frame, background="#00f3c3", text=((local_weather_stats())[
-            'detailed']), font=(genral_font, weather_size), fg=secondary_text_color)
+        weather_label = Label(weather_frame, background="#00f3c3", text=(day0_info.DetailedStatus()), font=(genral_font, weather_size), fg=secondary_text_color)
         weather_label.pack(side="left", fill="both", expand=True)
 
         fake_weather_label = Label(weather_frame, background="#00f3c3", text="____", font=(
@@ -1988,7 +1963,7 @@ class Home(Page):
         image_Frame = Frame(header_right_frame)
         image_Frame.grid(row=3, column=0, rowspan=2)
 
-        response = get(local_weather_stats()['path'])
+        response = get(day0_info.FindPath())
         img1 = Image.open(BytesIO(response.content))
 
         wpercent = (image_multiple / float(img1.size[0]))
@@ -2004,8 +1979,7 @@ class Home(Page):
         temp_frame = Frame(header_right_frame, background="#00f3c3")
         temp_frame.grid(row=3, column=1, rowspan=2)
 
-        temp_label = Label(temp_frame, background="#00f3c3", text=str(int(local_weather_stats()[
-            'tempature']['temp'])) + "°F", font=(genral_font, tempature_size), fg=primary_text_color)
+        temp_label = Label(temp_frame, background="#00f3c3", text=(str(day0_info.TempInF())) + "°F", font=(genral_font, tempature_size), fg=primary_text_color)
         temp_label.pack(side="left", fill="both", expand=True)
 
         # Lower Forecast Frame
@@ -2017,17 +1991,17 @@ class Home(Page):
         day1_frame.pack(side="left", expand=True)
 
         # Day of the week
-        day1_label = Label(day1_frame, bg=weather_forecast_background, text=day1_info['weekday_name'], font=(
+        day1_label = Label(day1_frame, bg=weather_forecast_background, text=day1_info.WeekdayName(), font=(
             genral_font, weather_title_size), fg=weather_text_color, pady=5)
         day1_label.grid(row=0, column=0)
 
         # Abrivated Date
-        day1_abrv_date_label = Label(day1_frame, bg=weather_forecast_background, text=day1_info['abrivated_full_date'], font=(
+        day1_abrv_date_label = Label(day1_frame, bg=weather_forecast_background, text=day1_info.AbrivatedDate(), font=(
             genral_font, weather_date_size), fg=weather_text_color)
         day1_abrv_date_label.grid(row=1, column=0)
 
         # Icon for weather
-        response = get(str(day1_info['icon_path']))
+        response = get(day1_info.Path())
         img = ImageTk.PhotoImage(Image.open(BytesIO(response.content)))
         day1_icon = Label(day1_frame, image=img,
                           bg=weather_forecast_background)
@@ -2035,7 +2009,7 @@ class Home(Page):
         day1_icon.grid(row=2, column=0)
 
         # Detailed weather report
-        day1_forecast = Label(day1_frame, bg=weather_forecast_background, text=day1_info['forecast'].title(
+        day1_forecast = Label(day1_frame, bg=weather_forecast_background, text=day1_info.Forecast().title(
         ), font=(genral_font, weather_report_size), fg=weather_text_color)
         day1_forecast.grid(row=3, column=0)
 
@@ -2044,24 +2018,24 @@ class Home(Page):
         day2_frame.pack(side="left", expand=True)
 
         # Day of the week
-        day2_label = Label(day2_frame, bg=weather_forecast_background, text=day2_info['weekday_name'], font=(
+        day2_label = Label(day2_frame, bg=weather_forecast_background, text=day2_info.WeekdayName(), font=(
             genral_font, weather_title_size), fg=weather_text_color, pady=5)
         day2_label.grid(row=0, column=0)
 
         # Abrivated Date
-        day2_abrv_date_label = Label(day2_frame, bg=weather_forecast_background, text=day2_info['abrivated_full_date'], font=(
+        day2_abrv_date_label = Label(day2_frame, bg=weather_forecast_background, text=day2_info.AbrivatedDate(), font=(
             genral_font, weather_date_size), fg=weather_text_color)
         day2_abrv_date_label.grid(row=1, column=0)
 
         # Icon for weather
-        response = get(str(day2_info['icon_path']))
+        response = get(day2_info.Path())
         img = ImageTk.PhotoImage(Image.open(BytesIO(response.content)))
         day2_icon = Label(day2_frame, image=img,
                           bg=weather_forecast_background)
         day2_icon.image = img
         day2_icon.grid(row=2, column=0)
 
-        day2_forecast = Label(day2_frame, bg=weather_forecast_background, text=day2_info['forecast'].title(
+        day2_forecast = Label(day2_frame, bg=weather_forecast_background, text=day2_info.Forecast().title(
         ), font=(genral_font, weather_report_size), fg=weather_text_color)
         day2_forecast.grid(row=3, column=0)
 
@@ -2070,17 +2044,17 @@ class Home(Page):
         day3_frame.pack(side="left", expand=True)
 
         # Day of the Week
-        day3_label = Label(day3_frame, bg=weather_forecast_background, text=day3_info['weekday_name'], font=(
+        day3_label = Label(day3_frame, bg=weather_forecast_background, text=day3_info.WeekdayName(), font=(
             genral_font, weather_title_size), fg=weather_text_color, pady=5)
         day3_label.grid(row=0, column=0)
 
         # Abrivated Date
-        day3_abrv_date_label = Label(day3_frame, bg=weather_forecast_background, text=day3_info['abrivated_full_date'], font=(
+        day3_abrv_date_label = Label(day3_frame, bg=weather_forecast_background, text=day3_info.AbrivatedDate(), font=(
             genral_font, weather_date_size), fg=weather_text_color)
         day3_abrv_date_label.grid(row=1, column=0)
 
         # Icon for weather
-        response = get(str(day3_info['icon_path']))
+        response = get(day3_info.Path())
         img = ImageTk.PhotoImage(Image.open(BytesIO(response.content)))
         day3_icon = Label(day3_frame, image=img,
                           bg=weather_forecast_background)
@@ -2088,7 +2062,7 @@ class Home(Page):
         day3_icon.grid(row=2, column=0)
 
         # Detailed weather report
-        day3_forecast = Label(day3_frame, bg=weather_forecast_background, text=day3_info['forecast'].title(
+        day3_forecast = Label(day3_frame, bg=weather_forecast_background, text=day3_info.Forecast().title(
         ), font=(genral_font, weather_report_size), fg=weather_text_color)
         day3_forecast.grid(row=3, column=0)
 
@@ -2097,17 +2071,17 @@ class Home(Page):
         day4_frame.pack(side="left", expand=True)
 
         # Day of the week
-        day4_label = Label(day4_frame, bg=weather_forecast_background, text=day4_info['weekday_name'], font=(
+        day4_label = Label(day4_frame, bg=weather_forecast_background, text=day4_info.WeekdayName(), font=(
             genral_font, weather_title_size), fg=weather_text_color, pady=5)
         day4_label.grid(row=0, column=0)
 
         # Abrivated Date
-        day4_abrv_date_label = Label(day4_frame, bg=weather_forecast_background, text=day4_info['abrivated_full_date'], font=(
+        day4_abrv_date_label = Label(day4_frame, bg=weather_forecast_background, text=day4_info.AbrivatedDate(), font=(
             genral_font, weather_date_size), fg=weather_text_color)
         day4_abrv_date_label.grid(row=1, column=0)
 
         # Icon for weather
-        response = get(str(day4_info['icon_path']))
+        response = get(day4_info.Path())
         img = ImageTk.PhotoImage(Image.open(BytesIO(response.content)))
         day4_icon = Label(day4_frame, image=img,
                           bg=weather_forecast_background)
@@ -2115,7 +2089,7 @@ class Home(Page):
         day4_icon.grid(row=2, column=0)
 
         # Detailed weather report
-        day4_forecast = Label(day4_frame, bg=weather_forecast_background, text=day4_info['forecast'].title(
+        day4_forecast = Label(day4_frame, bg=weather_forecast_background, text=day4_info.Forecast().title(
         ), font=(genral_font, weather_report_size), fg=weather_text_color)
         day4_forecast.grid(row=3, column=0)
 
@@ -2124,17 +2098,17 @@ class Home(Page):
         day5_frame.pack(side="left", expand=True)
 
         # Day of the week
-        day5_label = Label(day5_frame, bg=weather_forecast_background, text=day5_info['weekday_name'], font=(
+        day5_label = Label(day5_frame, bg=weather_forecast_background, text=day5_info.WeekdayName(), font=(
             genral_font, weather_title_size), fg=weather_text_color, pady=5)
         day5_label.grid(row=0, column=0)
 
         # Abrivated Date
-        day5_abrv_date_label = Label(day5_frame, bg=weather_forecast_background, text=day5_info['abrivated_full_date'], font=(
+        day5_abrv_date_label = Label(day5_frame, bg=weather_forecast_background, text=day5_info.AbrivatedDate(), font=(
             genral_font, weather_date_size), fg=weather_text_color)
         day5_abrv_date_label.grid(row=1, column=0)
 
         # Icon for weather
-        response = get(str(day5_info['icon_path']))
+        response = get(day5_info.Path())
         img = ImageTk.PhotoImage(Image.open(BytesIO(response.content)))
         day5_icon = Label(day5_frame, image=img,
                           bg=weather_forecast_background)
@@ -2142,7 +2116,7 @@ class Home(Page):
         day5_icon.grid(row=2, column=0)
 
         # Detailed weather report
-        day5_forecast = Label(day5_frame, bg=weather_forecast_background, text=day5_info['forecast'].title(
+        day5_forecast = Label(day5_frame, bg=weather_forecast_background, text=day5_info.Forecast().title(
         ), font=(genral_font, weather_report_size), fg=weather_text_color)
         day5_forecast.grid(row=3, column=0)
 
