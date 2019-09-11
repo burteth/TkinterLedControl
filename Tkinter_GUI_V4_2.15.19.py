@@ -1849,6 +1849,7 @@ class Home(Page):
 
             def Path(self):
                 date_string = (str(self.this_year) + '-' + str(self.this_month) + '-' + str(self.updated_day) + ' ' + '12:00:00+00')
+                print(date_string)
                 forecast=(self.f2).get_weather_at(date_string)
                 simplified_weather=(forecast.get_status()).lower()
                 weather_icons={"clear": '01d', "few clouds": '02d', "scattered clouds": '03d', "broken clouds": '04d',
@@ -1895,7 +1896,8 @@ class Home(Page):
         day2_info = day_info(API_key,roak_weather_id, 2)
         day3_info = day_info(API_key,roak_weather_id, 3)
         day4_info = day_info(API_key,roak_weather_id, 4)
-        day5_info = day_info(API_key,roak_weather_id, 5)
+        day5_info = day_info(API_key,roak_weather_id, 4)
+
 
         # 222222
 
